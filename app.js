@@ -1,6 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
+const mongoose = require("mongoose");
 const _ = require("lodash");
 
 
@@ -14,10 +15,16 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-var posts = [];
+// mongoose connection
+const postsSchema = {title: String, content: String};
+const Post = mongoose.model("Post", postsSchema);
+mongoose.connect('mongodb://localhost:27017/postsDB');
+
 
 app.get("/", (req,res) =>{
-  res.render(__dirname + "/views/home.ejs", {homeStartingContent: homeStartingContent, posts:posts});
+  Post.find({}, (err, posts)=>{
+    res.render(__dirname + "/views/home.ejs", {homeStartingContent: homeStartingContent, posts:posts});
+  });
 });
 
 app.get("/about", (req,res) =>{
@@ -32,24 +39,20 @@ app.get("/compose", (req,res)=>{
   res.render(__dirname + "/views/compose.ejs", {});
 });
 
-app.get("/posts/:post", (req,res) =>{
-  var postToRetrieve = _.lowerCase(req.params.post)
-
-  posts.forEach((post) =>{
-    postTitle = _.lowerCase(post.title)
-    if (postTitle == postToRetrieve){
-      postContent = post.content
-      res.render(__dirname + "/views/post.ejs", {postTitle: postTitle, postContent:postContent});
-    }
+app.get("/posts/:postId", (req,res) =>{
+  var postID = req.params.postId;
+  Post.findOne({_id: postID}, (err, postToDisplay)=>{
+    postTitle = postToDisplay.title;
+    postContent = postToDisplay.content;
+    res.render(__dirname + "/views/post.ejs", {postTitle: postTitle, postContent: postContent});
   });
 });
 
 app.post("/compose", (req, res) =>{
-  var post = {title: req.body.postTitle, content: req.body.postBody };
-  posts.push(post);
+  var post = {title: req.body.postTitle, content: req.body.postBody }; // retrieve new post
+  Post.create(post, (err) => {});   // insert new item into the database
   res.redirect("/");
 });
-
 
 
 app.listen(3000, function() {
